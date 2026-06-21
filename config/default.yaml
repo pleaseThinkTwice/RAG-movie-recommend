@@ -2,14 +2,14 @@
 
 # --- 模型 ---
 embedding:
-  model_name: "BAAI/bge-large-zh-v1.5"
-  dimension: 1024
+  model_name: "BAAI/bge-small-zh-v1.5"
+  dimension: 512
   max_tokens: 512
-  batch_size: 32
+  batch_size: 64
   normalize: true
 
 reranker:
-  model_name: "BAAI/bge-reranker-large"
+  model_name: "BAAI/bge-reranker-base"
   max_tokens: 512
   truncate_chars: 400
   batch_size: 16

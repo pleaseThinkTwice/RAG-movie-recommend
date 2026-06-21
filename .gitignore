@@ -49,6 +49,8 @@ models/
 # Vector DB
 chroma_db/
 vectordb/
+data/indexes/
+*.sqlite3
 
 # Logs
 *.log

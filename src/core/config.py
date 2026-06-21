@@ -123,7 +123,7 @@ def _dataclass_from_dict(cls, data: dict | None) -> object:
     kwargs = {}
     for key, value in data.items():
         if key not in field_types:
-            kwargs[key] = value
+            continue  # YAML 中有但 dataclass 里没有的字段，跳过（如 api_key_env）
         elif dataclasses.is_dataclass(field_types[key]) and isinstance(value, dict):
             kwargs[key] = _dataclass_from_dict(field_types[key], value)
         else:

@@ -1,0 +1,67 @@
+# RAG 电影推荐系统 - 默认配置
+
+# --- 模型 ---
+embedding:
+  model_name: "BAAI/bge-large-zh-v1.5"
+  dimension: 1024
+  max_tokens: 512
+  batch_size: 32
+  normalize: true
+
+reranker:
+  model_name: "BAAI/bge-reranker-large"
+  max_tokens: 512
+  truncate_chars: 400
+  batch_size: 16
+
+# --- LLM (DeepSeek, OpenAI 兼容接口) ---
+llm:
+  api_key_env: "DEEPSEEK_API_KEY"
+  base_url: "https://api.deepseek.com/v1"
+  model: "deepseek-chat"
+  temperature_query_parse: 0.0
+  temperature_generation: 0.3
+  max_tokens_generation: 256
+
+# --- 向量库 ---
+chromadb:
+  persist_dir: "data/indexes/chroma"
+  collection_name: "movies"
+  hnsw_space: "cosine"
+
+# --- BM25 ---
+bm25:
+  k1: 1.5
+  b: 0.75
+  index_path: "data/indexes/bm25.pkl"
+
+# --- 召回 ---
+recall:
+  vector_top_k: 50
+  bm25_top_k: 50
+  rrf_k: 60
+  fusion_top_k: 50
+  min_results_fallback: 10
+
+# --- 精排 ---
+rerank:
+  top_k: 10
+
+# --- 数据 ---
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  movies_file: "data/processed/movies.jsonl"
+  chunks_file: "data/processed/chunks.jsonl"
+  themes_cache: "data/processed/themes_cache.jsonl"
+  style_dict: "config/style_dict.json"
+  filter:
+    min_comment_len: 20
+    min_score_count: 100
+    min_text_info_len: 30
+
+# --- 评估 ---
+evaluation:
+  eval_set_path: "data/eval/eval_set.jsonl"
+  eval_results_dir: "data/eval_results"
+  judge_sample_size: 30

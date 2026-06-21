@@ -5,6 +5,7 @@ import sys
 import io
 import os
 from pathlib import Path
+from typing import Optional
 
 from src.core.config import get_config
 from src.core.schemas import Movie, Chunk, RankedMovie
@@ -12,6 +13,19 @@ from src.query.parser import QueryParser
 from src.retrieval.orchestrator import RecallOrchestrator
 from src.ranking.reranker import Reranker
 from src.generation.explainer import Explainer
+from src.indexing.embedder import Embedder
+from src.indexing.vector_store import VectorStore
+from src.indexing.bm25_index import BM25Searcher
+
+# ---- Module-level cache for expensive objects ----
+_cache: dict = {}
+
+
+def _get_or_create(key: str, factory):
+    """Lazy singleton cache for models and indexes."""
+    if key not in _cache:
+        _cache[key] = factory()
+    return _cache[key]
 
 
 def _load_movies_dict(movies_path: str) -> dict[str, Movie]:
@@ -55,7 +69,7 @@ def recommend(
     if verbose:
         print(f"Query: {user_query}")
         print("Parsing query...")
-    parser = QueryParser()
+    parser = _get_or_create("parser", QueryParser)
     parsed = parser.parse_sync(user_query)
     if verbose:
         print(f"  semantic_query: {parsed.semantic_query}")
@@ -65,7 +79,12 @@ def recommend(
     # 2. 召回
     if verbose:
         print("Recalling candidates...")
-    orchestrator = RecallOrchestrator()
+    orchestrator = _get_or_create("orchestrator",
+        lambda: RecallOrchestrator(
+            embedder=_get_or_create("embedder", Embedder),
+            vector_store=_get_or_create("vector_store", VectorStore),
+            bm25=_get_or_create("bm25", lambda: BM25Searcher().load()),
+        ))
     recall_results = orchestrator.recall(parsed)
     if verbose:
         print(f"  Recalled {len(recall_results)} candidates (unique movies: {len(set(r.movie_id for r in recall_results))})")
@@ -73,22 +92,21 @@ def recommend(
     # 3. 精排
     if verbose:
         print("Reranking...")
-    # 把 recall_results 聚合成 (chunk, score) 对
     chunks_map = _load_chunks_dict(config.data.chunks_file)
-    chunk_by_id: dict[str, Chunk] = {}
-    for clist in chunks_map.values():
-        for c in clist:
-            chunk_by_id[c.chunk_id] = c
 
-    reranker = Reranker()
-    # 去重到 movie 级别，每部电影取最高分 chunk
+    reranker = _get_or_create("reranker", Reranker)
+    # 去重到 movie 级别，从 chunks_map 获取每部电影的 chunk
     movie_best: dict[str, tuple[Chunk, float]] = {}
     for r in recall_results:
-        if r.chunk_id not in chunk_by_id:
+        if r.movie_id not in chunks_map:
             continue
-        chunk = chunk_by_id[r.chunk_id]
+        # 取该电影的所有 chunk 中第一个非空 plot chunk 作为代表
+        movie_chunks = chunks_map[r.movie_id]
+        best_chunk = movie_chunks[0] if movie_chunks else None
+        if best_chunk is None:
+            continue
         if r.movie_id not in movie_best or r.score > movie_best[r.movie_id][1]:
-            movie_best[r.movie_id] = (chunk, r.score)
+            movie_best[r.movie_id] = (best_chunk, r.score)
 
     sorted_movies: list[tuple[Chunk, float]] = []
     if movie_best:
@@ -102,7 +120,7 @@ def recommend(
     if verbose:
         print("Generating explanations...")
     movies_dict = _load_movies_dict(config.data.movies_file)
-    explainer = Explainer()
+    explainer = _get_or_create("explainer", Explainer)
 
     results: list[RankedMovie] = []
     for chunk, score in sorted_movies:

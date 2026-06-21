@@ -55,3 +55,9 @@ data/indexes/
 # Logs
 *.log
 logs/
+
+# Dev test scripts (contain env-specific paths/keys)
+test_parser.py
+test_recommend.py
+build_index_runner.py
+test_results.json

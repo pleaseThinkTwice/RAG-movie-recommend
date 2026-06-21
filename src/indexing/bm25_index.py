@@ -81,25 +81,27 @@ class BM25Searcher:
         return results
 
     def save(self, path: str | None = None):
-        """保存索引到磁盘。"""
+        """保存索引到磁盘（含 tokenized 数据，加载秒级）。"""
         if path is None:
             path = self.config.index_path
+        if self.index is None:
+            raise RuntimeError("No index to save. Call build() first.")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         data = {
             "chunks": [c.model_dump() for c in self.chunks],
-            # BM25Okapi can't be pickled directly with jieba tokens easily,
-            # so we store chunks and rebuild
+            "index": self.index,  # BM25Okapi 可直接 pickle
         }
         with open(path, "wb") as f:
             pickle.dump(data, f)
-        print(f"BM25 index saved to {path} (will rebuild tokens from chunks on load)")
+        print(f"BM25 index saved to {path}")
 
     def load(self, path: str | None = None):
-        """从磁盘加载索引（需要重建 tokenization）。"""
+        """从磁盘加载索引（直接加载 tokenized 数据，无需重建）。"""
         if path is None:
             path = self.config.index_path
         with open(path, "rb") as f:
             data = pickle.load(f)
-        chunks = [Chunk(**c) for c in data["chunks"]]
-        self.build(chunks)
-        print(f"BM25 index loaded from {path}")
+        self.chunks = [Chunk(**c) for c in data["chunks"]]
+        self.index = data["index"]
+        print(f"BM25 index loaded from {path} ({len(self.chunks)} docs)")
+        return self

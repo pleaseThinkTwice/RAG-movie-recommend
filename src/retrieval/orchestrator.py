@@ -89,27 +89,36 @@ class RecallOrchestrator:
                     results_lists.append(similar_results)
 
         # RRF 融合
-        fused = rrf_fuse(
+        fused_tuples = rrf_fuse(
             results_lists,
             k=self.config.rrf_k,
             top_k=self.config.fusion_top_k,
         )
 
         # 兜底：结果太少时放宽
-        if len(fused) < self.config.min_results_fallback:
-            # 再做一次无约束向量检索
+        if len(fused_tuples) < self.config.min_results_fallback:
             extra = self.vector_retriever.retrieve(
                 parsed_query.semantic_query,
                 top_k=50,
             )
-            extra_list = [[r for r in extra if r.movie_id not in dict(fused)]]
-            fused = rrf_fuse(
+            extra_list = [[r for r in extra if r.movie_id not in dict(fused_tuples)]]
+            fused_tuples = rrf_fuse(
                 [results_lists[0], results_lists[1]] + extra_list,
                 k=self.config.rrf_k,
                 top_k=self.config.fusion_top_k,
             )
 
-        return fused
+        # 转换回 RetrievalResult
+        fused_results = []
+        for movie_id, rrf_score in fused_tuples:
+            fused_results.append(RetrievalResult(
+                movie_id=movie_id,
+                chunk_id="",
+                score=rrf_score,
+                source="rrf_fusion",
+                rank=len(fused_results) + 1,
+            ))
+        return fused_results
 
     async def recall_async(self, parsed_query: ParsedQuery) -> list[RetrievalResult]:
         """异步版本（后续可优化为真正的并行检索）。"""

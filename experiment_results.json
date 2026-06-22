@@ -1,0 +1,28 @@
+{
+  "v1_pure_vector": {
+    "recall_at_10": "0.1667",
+    "ndcg_at_10": "0.1505",
+    "mrr": "0.2444"
+  },
+  "v2_vector_bm25_rrf": {
+    "recall_at_10": "0.1667",
+    "ndcg_at_10": "0.1031",
+    "mrr": "0.1169"
+  },
+  "v3_reranker": {
+    "recall_at_10": "1.0000",
+    "ndcg_at_10": "1.0000",
+    "mrr": "1.0000"
+  },
+  "num_queries": 6,
+  "method": "TREC pooling (v1+v2+v3 top-30), auto-relevant = v3 top-5",
+  "dataset_size": "30,429 movies / 91,287 chunks",
+  "timings": {
+    "vector_retrieval": 0.017057323455810548,
+    "bm25_retrieval": 0.15917763710021973,
+    "rrf_fusion": 7.17926025390625e-05,
+    "reranker_50_candidates": 0.7750197887420655,
+    "embedding_single": 0.008838748931884766,
+    "bm25_load": 3.9
+  }
+}
